@@ -5,6 +5,7 @@ library(shiny)
 library(httr)
 library(shinythemes)
 library(dplyr)
+library(jsonlite)
 library(DT)
 
 # Define UI for application that draws a histogram
