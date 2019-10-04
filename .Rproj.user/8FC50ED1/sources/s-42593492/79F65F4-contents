@@ -1,0 +1,55 @@
+# Class 13 SQL Query Test App
+
+library(shiny)
+library(httr)
+library(shinythemes)
+library(dplyr)
+library(DT)
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(theme = shinytheme("readable"),
+    tags$style("#query {width: calc(100vw - 30px)}"),
+
+    # Application title
+    titlePanel("WPRDC SQL Query Test App"),
+    
+    # Query Area Input 
+    fluidRow(style  = "padding: 15px",
+        textAreaInput("query", "SQL Query", height = "25vh"),
+        
+        actionButton("run", "Run Query", icon = icon("play"))
+    ),
+    # SQL Results
+    fluidRow(style  = "padding: 15px",
+        DT::dataTableOutput("results")
+    )
+)
+
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+    getResults <- eventReactive(input$run, {
+
+        formatQuery <- URLencode(input$query, repeated = TRUE)
+        
+        url <- paste0("https://data.wprdc.org/api/action/datastore_search_sql?sql=", formatQuery)
+        
+        g <- GET(url)
+        if (g$status_code != 200) {
+            results <- as_tibble(content(g)$error$info) %>%
+                select(orig)
+        } else {
+            results <- fromJSON(content(g, "text"))$result$records
+        }
+        
+        return(results)
+    })
+    output$results <- DT::renderDataTable(
+        getResults(),
+        extensions = 'Buttons',
+        options = list(scrollX = TRUE,
+                       dom = 'Bplfrti',
+                       buttons = c('copy', 'csv', 'excel')))
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
