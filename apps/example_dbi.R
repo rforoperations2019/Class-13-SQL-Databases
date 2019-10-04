@@ -5,7 +5,7 @@ library(shiny)
 library(DBI)
 library(pool)
 
-# You should always store credentials and keys in a file or enviornmental variable and have it ignored in your Git repository
+# You should always store credentials and keys in a file or enviornmental variable and have it ignored in your Git repository (if a file)
 creds <- jsonlite::fromJSON(".creds.json")
 
 # Create the DB Connection
@@ -45,21 +45,37 @@ ui <- fluidPage(
 )
 
 # Define server logic
-server <- function(input, output) {
-   dataLoad <- reactive({
-     # Generate SQL Statement which handles all filtering
-     sql <- paste0("SELECT * FROM SOME_DATABASE WHERE DATE_COLUMN BETWEEN '", input$dates[1], "' AND '", input$dates[2], "' AND TYPE = ", input$select)
-     # Run SQL Statement
-     onn <- poolCheckout(pool)
-     data <- dbGetQuery(conn, sql)
-     poolReturn(conn)
-     
-     return(data)
-   })
+server <- function(input, output, session) {
+   dataLoad <- reactivePoll(60000, session, 
+                            checkFunc = function(){
+                              print("Entered Check")
+                              Sys.time()
+                              print(Sys.time())
+                              # gets max date from database table to determine if data has been updated
+                              conn <- poolCheckout(pool)
+                              max_date <- dbGetQuery(con, "SELECT UNIX_TIMESTAMP(DATE_COLUMN) FROM SOME_TABLE;")
+                              data <- dbGetQuery(conn, sql)
+                              poolReturn(conn)
+                              return(max_date)
+                            },
+                            valueFunc = function(){
+                              # Generate SQL Statement which handles all filtering
+                              sql <- paste0("SELECT * FROM SOME_TABLE WHERE TYPE = ", input$select)
+                              # Run SQL Statement
+                              conn <- poolCheckout(pool)
+                              data <- dbGetQuery(conn, sql)
+                              poolReturn(conn)
+                              return(data)
+                            }
+   )
+   dataFilter <- 
    output$examplePlot <- renderPlot({
-     data <- dataLoad()
+     data <- dataFikter()
+     
+     req(input$dates)
+     table<- filter(DATE >= input$dates[1] & DATE <= input$dates[2])
        
-     ggplot(table, aes(x = STATUS, y = count, fill = STATUS)) +
+     ggplot(table, aes(x = STATUS, fill = STATUS)) +
        geom_bar()
    })
    onStop(
