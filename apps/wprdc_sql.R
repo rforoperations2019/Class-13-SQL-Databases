@@ -41,8 +41,7 @@ server <- function(input, output) {
         # Check if there's an error
         if (g$status_code != 200) {
             # Send error to table
-            results <- as_tibble(content(g)$error$info) %>%
-                select(orig)
+            results <- as_tibble(content(g)$error$info)
         } else {
             # Retrieve and display the results if successful
             results <- fromJSON(content(g, "text"))$result$records
